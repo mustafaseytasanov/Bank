@@ -10,7 +10,6 @@ public class DemoController {
 
     @GetMapping("/hello")
     public ResponseEntity<String> hello() {
-
         return ResponseEntity.ok("Hello User");
     }
 

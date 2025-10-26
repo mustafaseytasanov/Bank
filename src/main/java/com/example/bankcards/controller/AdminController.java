@@ -5,6 +5,7 @@ import com.example.bankcards.entity.Card;
 import com.example.bankcards.service.CardService;
 import com.example.bankcards.service.UserService;
 import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,12 +27,11 @@ public class AdminController {
         return ResponseEntity.notFound().build();
     }
 
-    @PutMapping("/block-card")
-    public ResponseEntity<Void> blockCard(@RequestBody String cardNumber) {
-        if (cardService.blockCard(cardNumber) == 0) {
-            return ResponseEntity.ok().build();
-        }
-        return ResponseEntity.notFound().build();
+    @PostMapping("/process-requests")
+    public ResponseEntity<String> makeResponses() {
+        cardService.makeResponses();
+        return new ResponseEntity<>("Запросы пользователей выполнены",
+                                    HttpStatus.OK);
     }
 
     @PutMapping("/activate-card")
@@ -61,7 +61,5 @@ public class AdminController {
         List<Card> cards = cardService.getCards();
         return ResponseEntity.ok().body(cards);
     }
-
-
 
 }

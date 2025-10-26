@@ -1,15 +1,20 @@
 package com.example.bankcards.service.impl;
 
 import com.example.bankcards.dto.UserDTO;
+import com.example.bankcards.entity.Card;
 import com.example.bankcards.entity.User;
 import com.example.bankcards.repository.UserRepository;
 import com.example.bankcards.service.UserService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -62,4 +67,5 @@ public class UserServiceImpl implements UserService {
         }
         return userDTOs;
     }
+
 }
