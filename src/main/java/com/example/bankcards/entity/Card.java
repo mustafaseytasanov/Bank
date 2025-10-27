@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.util.Date;
 
 @Entity
@@ -29,7 +30,7 @@ public class Card {
     private User user;
 
     @Column(name = "period")
-    private Date period;
+    private LocalDate period;
 
     @Enumerated(EnumType.STRING)
     private Status status;

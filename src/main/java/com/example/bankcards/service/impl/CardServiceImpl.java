@@ -8,6 +8,7 @@ import com.example.bankcards.repository.UserMessageRepository;
 import com.example.bankcards.repository.UserRepository;
 import com.example.bankcards.service.CardService;
 import lombok.AllArgsConstructor;
+import org.jasypt.encryption.pbe.StandardPBEStringEncryptor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -25,28 +26,18 @@ public class CardServiceImpl implements CardService {
     private UserRepository userRepository;
     private UserMessageRepository messageRepository;
 
-    public int saveCard(String username) {
-        Optional<User> user = userRepository.findByUsername(username);
-        if (user.isPresent()) {
-            Card card = new Card();
-            // Generation of number
-            Random random = new Random();
-            long min = 1_000_000_000_000_000L; // 10^15
-            long max = 9_999_999_999_999_999L; // 10^16 - 1
-            long randomNumber = min + (long)(random.nextDouble() * (max - min + 1));
-            card.setNumber(String.valueOf(randomNumber));
-            card.setUser(user.get());
-            card.setStatus(Status.ACTIVE);
-            card.setBalance(0.0);
-            LocalDate now = LocalDate.now();
-            Date date = new Date();
-            date.setYear(now.getYear());
-            date.setMonth(now.getMonthValue());
-            card.setPeriod(date);
-            cardRepository.save(card);
-            return 0;
-        }
-        return 1;
+    private static final String cryptoPassword = "cardPassword";
+
+    private String encrypt(String value) {
+        StandardPBEStringEncryptor encryptor = new StandardPBEStringEncryptor();
+        encryptor.setPassword(cryptoPassword);
+        return encryptor.encrypt(value);
+    }
+
+    private String decrypt(String value) {
+        StandardPBEStringEncryptor decrypter = new StandardPBEStringEncryptor();
+        decrypter.setPassword(cryptoPassword);
+        return decrypter.decrypt(value);
     }
 
     @Override
@@ -76,7 +67,8 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
-    public Page<CardDTO> getUserCards(String username, int offset, int limit) {
+    public Page<CardDTO> getUserCards(String username, int offset, int limit,
+                                      boolean mask) {
         Pageable page = PageRequest.of(offset, limit);
         Optional<User> user = userRepository.findByUsername(username);
         long userId = user.get().getId();
@@ -84,11 +76,15 @@ public class CardServiceImpl implements CardService {
         List<CardDTO> cardDTOList = new ArrayList<>();
         for (Card card : cardPage.getContent()) {
             CardDTO cardDTO = new CardDTO(
-                    card.getNumber(),
+                    decrypt(card.getNumber()),
                     card.getPeriod(),
                     card.getStatus(),
                     card.getBalance()
             );
+            if (mask) {
+                cardDTO.setNumber("**** **** **** " + decrypt(card.getNumber())
+                        .substring(15));
+            }
             cardDTOList.add(cardDTO);
         }
         return new PageImpl<>(cardDTOList, page, cardPage.getTotalElements());
@@ -113,6 +109,16 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
+    public void openCardRequest(String username) {
+        Optional<User> user = userRepository.findByUsername(username);
+        long userId = user.get().getId();
+        UserMessage userMessage = new UserMessage();
+        userMessage.setAction(Action.CREATE);
+        userMessage.setUserId(userId);
+        messageRepository.save(userMessage);
+    }
+
+    @Override
     public void makeResponses() {
         List<UserMessage> userMessageList = messageRepository.findAll();
         for (UserMessage userMessage : userMessageList) {
@@ -120,9 +126,48 @@ public class CardServiceImpl implements CardService {
                 String cardNumber = userMessage.getCardNumber();
                 Optional<Card> card = cardRepository.findByNumber(cardNumber);
                 card.ifPresent(newCard -> newCard.setStatus(Status.BLOCKED));
+            } else if (userMessage.getAction() == Action.CREATE) {
+                Card card = new Card();
+                while (true) {
+                    String newCardNumber = getNewCardNumber();
+                    if (cardRepository.findByNumber(
+                            this.encrypt(newCardNumber)).isEmpty()) {
+                        Optional<User> user = userRepository.findById(userMessage.getUserId());
+                        if (user.isPresent()) {
+                            card.setUser(user.get());
+                            card.setNumber(this.encrypt(newCardNumber));
+                            LocalDate today = LocalDate.now();
+                            LocalDate date = LocalDate.of(today.getYear() + 5,
+                                    today.getMonth(), today.getDayOfMonth());
+                            card.setPeriod(date);
+                            card.setStatus(Status.ACTIVE);
+                            card.setBalance(0.0);
+                            cardRepository.save(card);
+                            break;
+                        }
+                    }
+                }
             }
         }
         messageRepository.deleteAll();
+    }
+
+    private static String getNewCardNumber() {
+        Random random = new Random();
+        StringBuilder sb = new StringBuilder();
+        int i = 0;
+        while (true) {
+            int min = 1000;
+            int max = 9999;
+            int randomNumber = min + random.nextInt(max - min + 1);
+            sb.append(randomNumber);
+            i++;
+            if (i == 4) {
+                break;
+            }
+            sb.append(" ");
+        }
+        return sb.toString();
     }
 
     @Override

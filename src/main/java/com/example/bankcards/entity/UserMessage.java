@@ -21,4 +21,7 @@ public class UserMessage {
 
     @Column(name = "number")
     private String cardNumber;
+
+    @Column(name = "user_id")
+    private Long userId;
 }

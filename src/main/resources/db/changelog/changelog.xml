@@ -9,4 +9,6 @@
     <include file="create-changeset-card-table.xml" relativeToChangelogFile="true"/>
     <include file="create-changeset-modify-users-table.xml" relativeToChangelogFile="true"/>
     <include file="create-changeset-message-table.xml" relativeToChangelogFile="true"/>
+    <include file="create-changeset-modify-message-table.xml" relativeToChangelogFile="true"/>
+    <include file="create-changeset-modify-message-table2.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>

@@ -22,11 +22,13 @@ public class UserController {
     @PreAuthorize("hasRole('USER')")
     public Page<CardDTO> getMyCards(
             @RequestParam("offset") Integer offset,
-            @RequestParam("limit") Integer limit
+            @RequestParam("limit") Integer limit,
+            @RequestParam(value = "hiding", required = false) String hiding
     ) {
+        boolean mask = hiding != null;
         String username = SecurityContextHolder.getContext()
                 .getAuthentication().getName();
-        return cardService.getUserCards(username, offset, limit);
+        return cardService.getUserCards(username, offset, limit, mask);
     }
 
     @PostMapping("/block-card/{cardNumber}")
@@ -45,6 +47,16 @@ public class UserController {
         }
         return new ResponseEntity<>("Запрос по блокировке карты принят",
                                     HttpStatus.ACCEPTED);
+    }
+
+    @PostMapping("/open-card")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<String> openCardRequest() {
+        String username = SecurityContextHolder.getContext()
+                .getAuthentication().getName();
+        cardService.openCardRequest(username);
+        return new ResponseEntity<>("Запрос об открытии новой карты принят",
+                HttpStatus.ACCEPTED);
     }
 
     @PostMapping("/make-transfer")

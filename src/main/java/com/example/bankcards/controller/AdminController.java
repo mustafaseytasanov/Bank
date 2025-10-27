@@ -19,14 +19,6 @@ public class AdminController {
     private final CardService cardService;
     private final UserService userService;
 
-    @PostMapping("/create-card")
-    public ResponseEntity<Void> createCard(@RequestBody String username) {
-        if (cardService.saveCard(username) == 0) {
-            return ResponseEntity.ok().build();
-        }
-        return ResponseEntity.notFound().build();
-    }
-
     @PostMapping("/process-requests")
     public ResponseEntity<String> makeResponses() {
         cardService.makeResponses();
