@@ -26,14 +26,6 @@ public class AdminController {
                                     HttpStatus.OK);
     }
 
-    @PutMapping("/activate-card")
-    public ResponseEntity<Void> activateCard(@RequestBody String cardNumber) {
-        if (cardService.activateCard(cardNumber) == 0) {
-            return ResponseEntity.ok().build();
-        }
-        return ResponseEntity.notFound().build();
-    }
-
     @DeleteMapping("/delete-card")
     public ResponseEntity<Void> deleteCard(@RequestBody String cardNumber) {
         if (cardService.deleteCard(cardNumber) == 0) {

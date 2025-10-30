@@ -37,16 +37,15 @@ public class UserController {
             @PathVariable String cardNumber) {
         String username = SecurityContextHolder.getContext()
                 .getAuthentication().getName();
-        int returnedValue = cardService.blockCardRequest(cardNumber, username);
+        int returnedValue = cardService.checkCardAndUser(cardNumber, username);
         if (returnedValue == 1) {
-            return new ResponseEntity<>("Такой карты не существует",
+            return new ResponseEntity<>("Введенной карты у Вас нет",
                     HttpStatus.NOT_FOUND);
-        } else if (returnedValue == 2) {
-            return new ResponseEntity<>("К этой карте у тебя нет доступа",
-                    HttpStatus.FORBIDDEN);
+        } else {
+            cardService.blockCardRequest(cardNumber, username);
+            return new ResponseEntity<>("Запрос по блокировке карты принят",
+                    HttpStatus.ACCEPTED);
         }
-        return new ResponseEntity<>("Запрос по блокировке карты принят",
-                                    HttpStatus.ACCEPTED);
     }
 
     @PostMapping("/open-card")
@@ -57,6 +56,24 @@ public class UserController {
         cardService.openCardRequest(username);
         return new ResponseEntity<>("Запрос об открытии новой карты принят",
                 HttpStatus.ACCEPTED);
+    }
+
+    @PostMapping("/activate-card/{cardNumber}")
+    public ResponseEntity<String> activateCardRequest(
+            @PathVariable String cardNumber
+    ) {
+        String username = SecurityContextHolder.getContext()
+                .getAuthentication().getName();
+        int returnedValue = cardService.checkCardAndUser(
+                cardNumber, username);
+        if (returnedValue == 1) {
+            return new ResponseEntity<>("Введенной карты у Вас нет",
+                    HttpStatus.NOT_FOUND);
+        } else {
+            cardService.activateCardRequest(cardNumber, username);
+            return new ResponseEntity<>("Запрос по активированию карты принят",
+                    HttpStatus.ACCEPTED);
+        }
     }
 
     @PostMapping("/make-transfer")

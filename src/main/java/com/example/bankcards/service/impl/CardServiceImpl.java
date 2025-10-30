@@ -28,27 +28,18 @@ public class CardServiceImpl implements CardService {
 
     private static final String cryptoPassword = "cardPassword";
 
-    private String encrypt(String value) {
+    @Override
+    public String encrypt(String value) {
         StandardPBEStringEncryptor encryptor = new StandardPBEStringEncryptor();
         encryptor.setPassword(cryptoPassword);
         return encryptor.encrypt(value);
     }
 
-    private String decrypt(String value) {
+    @Override
+    public String decrypt(String value) {
         StandardPBEStringEncryptor decrypter = new StandardPBEStringEncryptor();
         decrypter.setPassword(cryptoPassword);
         return decrypter.decrypt(value);
-    }
-
-    @Override
-    public int activateCard(String cardNumber) {
-        Optional<Card> card = cardRepository.findByNumber(cardNumber);
-        if (card.isPresent()) {
-            Card newCard = card.get();
-            newCard.setStatus(Status.ACTIVE);
-            return 0;
-        }
-        return 1;
     }
 
     @Override
@@ -91,21 +82,14 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
-    public int blockCardRequest(String cardNumber, String username) {
-        Optional<Card> card = cardRepository.findByNumber(cardNumber);
-        if (card.isEmpty()) {
-            return 1;
-        }
-        Optional<User> user = userRepository.findByUsername(username);
-        long userId = user.get().getId();
-        if (userId != card.get().getUser().getId()) {
-            return 2;
-        }
+    public void blockCardRequest(String cardNumber, String username) {
         UserMessage userMessage = new UserMessage();
         userMessage.setAction(Action.BLOCK);
         userMessage.setCardNumber(cardNumber);
+        Optional<User> user = userRepository.findByUsername(username);
+        long userId = user.get().getId();
+        userMessage.setUserId(userId);
         messageRepository.save(userMessage);
-        return 0;
     }
 
     @Override
@@ -119,35 +103,94 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
+    public void activateCardRequest(String cardNumber, String username) {
+        UserMessage userMessage = new UserMessage();
+        userMessage.setAction(Action.ACTIVATE);
+        userMessage.setCardNumber(cardNumber);
+        Optional<User> user = userRepository.findByUsername(username);
+        long userId = user.get().getId();
+        userMessage.setUserId(userId);
+        messageRepository.save(userMessage);
+    }
+
+    @Override
+    public int checkCardAndUser(String cardNumber, String username) {
+
+        Optional<User> user = userRepository.findByUsername(username);
+        if (user.isPresent()) {
+            List<Card> cardList = cardRepository.findByUser_Id(user.get().getId());
+            String encryptedCardNumber2;
+            for (Card card : cardList) {
+                encryptedCardNumber2 = decrypt(card.getNumber());
+                System.out.println(encryptedCardNumber2);
+                if (encryptedCardNumber2.equals(cardNumber)) {
+                    return 0;
+                }
+            }
+        }
+        return 1;
+    }
+
+    @Override
     public void makeResponses() {
         List<UserMessage> userMessageList = messageRepository.findAll();
+        String cardNumber;
+        List<Card> cardList;
         for (UserMessage userMessage : userMessageList) {
-            if (userMessage.getAction() == Action.BLOCK) {
-                String cardNumber = userMessage.getCardNumber();
-                Optional<Card> card = cardRepository.findByNumber(cardNumber);
-                card.ifPresent(newCard -> newCard.setStatus(Status.BLOCKED));
-            } else if (userMessage.getAction() == Action.CREATE) {
-                Card card = new Card();
-                while (true) {
-                    String newCardNumber = getNewCardNumber();
-                    if (cardRepository.findByNumber(
-                            this.encrypt(newCardNumber)).isEmpty()) {
-                        Optional<User> user = userRepository.findById(userMessage.getUserId());
-                        if (user.isPresent()) {
-                            card.setUser(user.get());
-                            card.setNumber(this.encrypt(newCardNumber));
-                            LocalDate today = LocalDate.now();
-                            LocalDate date = LocalDate.of(today.getYear() + 5,
-                                    today.getMonth(), today.getDayOfMonth());
-                            card.setPeriod(date);
-                            card.setStatus(Status.ACTIVE);
-                            card.setBalance(0.0);
+            Action action = userMessage.getAction();
+            switch (action) {
+                case BLOCK:
+                    cardNumber = userMessage.getCardNumber();
+                    cardList = cardRepository.findByUser_Id(
+                            userMessage.getUserId());
+                    for (Card card: cardList) {
+                        if (decrypt(card.getNumber()).equals(cardNumber)) {
+                            card.setStatus(Status.BLOCKED);
                             cardRepository.save(card);
                             break;
                         }
                     }
-                }
+                    break;
+                case CREATE:
+                    Card card2 = new Card();
+                    while (true) {
+                        String newCardNumber = getNewCardNumber();
+                        
+                        if (cardRepository.findByNumber(
+                                this.encrypt(newCardNumber)).isEmpty()) {
+                            Optional<User> user = userRepository.findById(userMessage.getUserId());
+                            if (user.isPresent()) {
+                                card2.setUser(user.get());
+                                card2.setNumber(this.encrypt(newCardNumber));
+                                LocalDate today = LocalDate.now();
+                                LocalDate date = LocalDate.of(today.getYear() + 5,
+                                        today.getMonth(), today.getDayOfMonth());
+                                card2.setPeriod(date);
+                                card2.setStatus(Status.ACTIVE);
+                                card2.setBalance(0.0);
+                                cardRepository.save(card2);
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                case ACTIVATE:
+                    cardNumber = userMessage.getCardNumber();
+                    cardList = cardRepository.findByUser_Id(
+                            userMessage.getUserId());
+                    for (Card card: cardList) {
+                        if (decrypt(card.getNumber()).equals(cardNumber)) {
+                            card.setStatus(Status.ACTIVE);
+                            cardRepository.save(card);
+                            break;
+                        }
+                    }
+                    break;
+                default:
+                    System.out.println("Invalid action");
+                    break;
             }
+
         }
         messageRepository.deleteAll();
     }
