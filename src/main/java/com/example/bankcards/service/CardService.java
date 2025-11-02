@@ -9,7 +9,6 @@ import java.util.List;
 
 public interface CardService {
 
-    int deleteCard(String cardNumber);
     List<Card> getCards();
     Page<CardDTO> getUserCards(String username, int offset, int limit,
                                boolean mask);
@@ -24,5 +23,6 @@ public interface CardService {
     int checkCardAndUser(String cardNumber, String username);
     String encrypt(String value);
     String decrypt(String value);
-
+    void deleteCardRequest(String cardNumber, String username);
+    void processExpiredCards();
 }

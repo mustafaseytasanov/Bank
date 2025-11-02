@@ -43,16 +43,6 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
-    public int deleteCard(String cardNumber) {
-        Optional<Card> card = cardRepository.findByNumber(cardNumber);
-        if (card.isPresent()) {
-            cardRepository.delete(card.get());
-            return 0;
-        }
-        return 1;
-    }
-
-    @Override
     public List<Card> getCards() {
         return cardRepository.findAll();
     }
@@ -114,6 +104,17 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
+    public void deleteCardRequest(String cardNumber, String username) {
+        UserMessage userMessage = new UserMessage();
+        userMessage.setAction(Action.DELETE);
+        userMessage.setCardNumber(cardNumber);
+        Optional<User> user = userRepository.findByUsername(username);
+        long userId = user.get().getId();
+        userMessage.setUserId(userId);
+        messageRepository.save(userMessage);
+    }
+
+    @Override
     public int checkCardAndUser(String cardNumber, String username) {
 
         Optional<User> user = userRepository.findByUsername(username);
@@ -129,6 +130,19 @@ public class CardServiceImpl implements CardService {
             }
         }
         return 1;
+    }
+
+    @Override
+    public void processExpiredCards() {
+        List<Card> cards = cardRepository.findAll();
+        for (Card card: cards) {
+            String period = card.getPeriod().toString();
+            String now = LocalDate.now().toString();
+            if (period.compareTo(now) < 0) {
+                card.setStatus(Status.EXPIRED);
+                cardRepository.save(card);
+            }
+        }
     }
 
     @Override
@@ -153,24 +167,28 @@ public class CardServiceImpl implements CardService {
                     break;
                 case CREATE:
                     Card card2 = new Card();
+                    List<Card> cards = cardRepository.findAll();
+                    Set<String> numbers = new HashSet<>();
+                    for (Card card: cards) {
+                        numbers.add(decrypt(card.getNumber()));
+                    }
                     while (true) {
                         String newCardNumber = getNewCardNumber();
-                        
-                        if (cardRepository.findByNumber(
-                                this.encrypt(newCardNumber)).isEmpty()) {
-                            Optional<User> user = userRepository.findById(userMessage.getUserId());
-                            if (user.isPresent()) {
-                                card2.setUser(user.get());
-                                card2.setNumber(this.encrypt(newCardNumber));
-                                LocalDate today = LocalDate.now();
-                                LocalDate date = LocalDate.of(today.getYear() + 5,
-                                        today.getMonth(), today.getDayOfMonth());
-                                card2.setPeriod(date);
-                                card2.setStatus(Status.ACTIVE);
-                                card2.setBalance(0.0);
-                                cardRepository.save(card2);
-                                break;
-                            }
+                        if (numbers.contains(newCardNumber)) {
+                            continue;
+                        }
+                        Optional<User> user = userRepository.findById(userMessage.getUserId());
+                        if (user.isPresent()) {
+                            card2.setUser(user.get());
+                            card2.setNumber(this.encrypt(newCardNumber));
+                            LocalDate today = LocalDate.now();
+                            LocalDate date = LocalDate.of(today.getYear() + 5,
+                                    today.getMonth(), today.getDayOfMonth());
+                            card2.setPeriod(date);
+                            card2.setStatus(Status.ACTIVE);
+                            card2.setBalance(0.0);
+                            cardRepository.save(card2);
+                            break;
                         }
                     }
                     break;
@@ -182,6 +200,17 @@ public class CardServiceImpl implements CardService {
                         if (decrypt(card.getNumber()).equals(cardNumber)) {
                             card.setStatus(Status.ACTIVE);
                             cardRepository.save(card);
+                            break;
+                        }
+                    }
+                    break;
+                case DELETE:
+                    cardNumber = userMessage.getCardNumber();
+                    cardList = cardRepository.findByUser_Id(
+                            userMessage.getUserId());
+                    for (Card card: cardList) {
+                        if (decrypt(card.getNumber()).equals(cardNumber)) {
+                            cardRepository.delete(card);
                             break;
                         }
                     }

@@ -76,6 +76,24 @@ public class UserController {
         }
     }
 
+    @PostMapping("/delete-card/{cardNumber}")
+    public ResponseEntity<String> deleteCardRequest(
+            @PathVariable String cardNumber
+    ) {
+        String username = SecurityContextHolder.getContext()
+                .getAuthentication().getName();
+        int returnedValue = cardService.checkCardAndUser(
+                cardNumber, username);
+        if (returnedValue == 1) {
+            return new ResponseEntity<>("Введенной карты у Вас нет",
+                    HttpStatus.NOT_FOUND);
+        } else {
+            cardService.deleteCardRequest(cardNumber, username);
+            return new ResponseEntity<>("Запрос по активированию карты принят",
+                    HttpStatus.ACCEPTED);
+        }
+    }
+
     @PostMapping("/make-transfer")
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<String> makeTransfer(

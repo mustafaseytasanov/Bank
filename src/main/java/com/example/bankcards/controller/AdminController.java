@@ -26,12 +26,11 @@ public class AdminController {
                                     HttpStatus.OK);
     }
 
-    @DeleteMapping("/delete-card")
-    public ResponseEntity<Void> deleteCard(@RequestBody String cardNumber) {
-        if (cardService.deleteCard(cardNumber) == 0) {
-            return ResponseEntity.ok().build();
-        }
-        return ResponseEntity.notFound().build();
+    @PostMapping("/process-expired")
+    public ResponseEntity<String> processExpiredCards() {
+        cardService.processExpiredCards();
+        return new ResponseEntity<>("Отмечены просроченные карты",
+                HttpStatus.OK);
     }
 
     @GetMapping("/all-users")
